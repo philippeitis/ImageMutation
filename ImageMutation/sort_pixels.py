@@ -1,8 +1,3 @@
-# 0 black
-# 1 brightness -> max image value
-# 2 white
-
-
 from PIL import Image
 import numpy as np
 
@@ -10,7 +5,7 @@ import numpy as np
 def parse_args():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--files", default=["base.jpg"], nargs="+",
+    parser.add_argument("--files", default=["../demo/nasa--hI5dX2ObAs-unsplash.jpg"], nargs="+",
                         help="File(s) to sort. Can be any format supported by PIL. ")
     parser.add_argument("--mode", default=1, type=int, choices=[0, 1, 2, 3],
                         help="0: Sorts on black levels\n"
@@ -58,7 +53,7 @@ def get_white_index(x_start, row: np.ndarray):
     return point + x_start
 
 
-def sort_pixel_list(row, compressed_row, sort_compressed=False):
+def sort_pixel_list(row, compressed_row, sort_compressed=True):
     """ Sorts both row and compressed_row (if sort_compressed is True) based on compressed_row. """
     sorted_indices = np.argsort(compressed_row)
     row[:, 0] = row[:, 0][sorted_indices]
@@ -74,7 +69,7 @@ def sort_row(row, compressed_row, start_point_fn, end_point_fn):
     """ Sorts the row based on compressed_row, using start_point_fn and end_point_fn to determine where to start, and
     stop sorting a given region. """
     len_row = len(row)
-    x_start = start_point_fn(0, row)
+    x_start = start_point_fn(0, compressed_row)
     while x_start != len_row and x_start != -1:
         x_end = end_point_fn(x_start, compressed_row)
         if x_end == -1:
@@ -106,6 +101,7 @@ def sort_intervals(image, compressed_image, start_point_fn, end_point_fn, sort_c
     """
 
     rows, cols, _ = image.shape
+
     if sort_cols:
         for col in range(cols):
             sort_row(image[:, col], compressed_image[:, col], start_point_fn, end_point_fn)
