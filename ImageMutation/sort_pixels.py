@@ -1,5 +1,6 @@
 from PIL import Image
 import numpy as np
+from image_utilities import brightness, select_random_rows
 
 """
 Note that rows in the context of this code will refer to either a row or column if it is in the function name:
@@ -7,13 +8,16 @@ Note that rows in the context of this code will refer to either a row or column 
  If it is not inside the function name, and is not specified in the arguments, rows refers to the rows in the image.
 """
 
+BLACK_VAL = 60
+WHITE_VAL = 150
+
 
 def parse_args():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--files", default=["../demo/nasa--hI5dX2ObAs-unsplash.jpg"], nargs="+",
+    parser.add_argument("--files", "-f", dest="files", default=["../demo/nasa--hI5dX2ObAs-unsplash.jpg"], nargs="+",
                         help="File(s) to sort. Can be any format supported by PIL. ")
-    parser.add_argument("--mode", default=1, type=int, choices=[0, 1, 2, 3],
+    parser.add_argument("--mode", "-m", dest="mode", default=1, type=int, choices=[0, 1, 2, 3],
                         help="0: Sorts on black levels\n"
                              "1: Sorts on brightness values\n"
                              "2: Sorts on white levels\n"
@@ -23,33 +27,38 @@ def parse_args():
     #                     help="Will not sort on the given channel.")
     parser.add_argument("--random_rows", action="store_true",
                         help="If selected, rows and columns will be randomly selected to be sorted.")
+    parser.add_argument("--custom_interval", type=int, nargs="*", default=None,
+                        help="Will start sorting on a number less than or equal to the first number supplied, and a"
+                             "number higher than the second number supplied.")
+
     row_or_col = parser.add_mutually_exclusive_group()
     row_or_col.add_argument("--row_only", action="store_true",
                             help="Will only sort rows.")
     row_or_col.add_argument("--col_only", action="store_true",
                             help="Will only sort columns")
 
+    args = parser.parse_args()
+    if args.custom_interval:
+        args.mode = -1
+        if len(args.custom_interval) > 2:
+            raise argparse.ArgumentParser("argument custom_interval requires between 1 and 2 arguments.")
+        else:
+            for light_level in args.custom_interval:
+                if light_level < 0 or light_level > 255:
+                    raise argparse.ArgumentParser("argument custom_interval requires numbers to be between 0 and 255.")
+
     return parser.parse_args()
 
 
-def select_random_rows(rows):
-    """ Will randomly select sequential rows. """
-    import random
-    start = 0
-    while start != rows:
-        start = random.randint(start, rows - 1) + 1
-        yield start - 1
-
-
 def get_non_black_index(x_start, row: np.ndarray):
-    point = np.argmax(row[x_start:] > 60)
+    point = np.argmax(row[x_start:] > BLACK_VAL)
     if point == 0:
         return -1
     return point + x_start
 
 
 def get_black_index(x_start, row: np.ndarray):
-    point = np.argmax(row[x_start:] <= 60)
+    point = np.argmax(row[x_start:] <= BLACK_VAL)
     if point == 0:
         return -1
     return point + x_start
@@ -57,7 +66,7 @@ def get_black_index(x_start, row: np.ndarray):
 
 def get_non_white_index(x_start, row: np.ndarray):
     """ Get first index that is not "white" past x_start. Returns -1 if no such index exists. """
-    point = np.argmax(row[x_start:] < 150)
+    point = np.argmax(row[x_start:] < WHITE_VAL)
     if point == 0:
         return -1
     return point + x_start
@@ -65,7 +74,7 @@ def get_non_white_index(x_start, row: np.ndarray):
 
 def get_white_index(x_start, row: np.ndarray):
     """ Get first index that is "white" past x_start. Returns -1 if no such index exists. """
-    point = np.argmax(row[x_start:] >= 150)
+    point = np.argmax(row[x_start:] >= WHITE_VAL)
     if point == 0:
         return -1
     return point + x_start
@@ -131,41 +140,56 @@ def sort_intervals(image, compressed_image, start_point_fn, end_point_fn,
             sort_row(image[row, :], compressed_image[row, :], start_point_fn, end_point_fn)
 
 
-def brightness(pixels):
-    """ Returns a matrix for which each entry represents the brightness of the same entry in pixels.
-
-    :param pixels:  A row x col x 3 matrix representing an image.
-    :return:        A row x col x 1 matrix where each entry is the maximum of the three values for the corresponding
-                    pixel.
-    """
-    """ For each pixel in pixels, returns the brightness (or maximum of its three colors). """
-    big_pixels = pixels.astype(int)
-    return np.maximum(np.maximum(big_pixels[:, :, 0], big_pixels[:, :, 1]), big_pixels[:, :, 2])
-
-
 def main():
     """ Program runner: parses the arguments and produces the appropriate images."""
     import os
 
-    iterator = select_random_rows if args.random_rows else range
     args = parse_args()
+    iterator = select_random_rows if args.random_rows else range
+
+    if args.custom_interval:
+        def interval_start_fn(x_start, row: np.ndarray):
+            point = np.argmax(row[x_start:] >= args.custom_interval[0])
+            if point == 0:
+                return -1
+            return point + x_start
+
+        if len(args.custom_interval) == 2:
+            def interval_end_fn(x_start, row: np.ndarray):
+                point = np.argmax(row[x_start:] < args.custom_interval[1])
+                if point == 0:
+                    return -1
+                return point + x_start
+        else:
+            def interval_end_fn(x_start, row: np.ndarray):
+                point = np.argmax(row[x_start:] < args.custom_interval[0])
+                if point == 0:
+                    return -1
+                return point + x_start
+
     for file_name in args.files:
         img = Image.open(file_name)
         pixels = np.copy(np.asarray(img))
         pixels_compressed = brightness(pixels)
 
-        if args.mode == 0 or args.mode == 3:
-            sort_intervals(pixels, pixels_compressed, get_black_index, get_non_black_index, iterator,
-                           not args.row_only, not args.col_only)
-        elif args.mode == 2 or args.mode == 3:
-            sort_intervals(pixels, pixels_compressed, get_white_index, get_non_white_index, iterator,
+        if args.custom_interval:
+            sort_intervals(pixels, pixels_compressed, interval_start_fn, interval_end_fn, iterator,
                            not args.row_only, not args.col_only)
         else:
-            # start_fn: returns 0 on entering loop
-            # end_fn: returns the length - sorts the entire list
-            # start_fn: x is returned, and x is end.
-            sort_intervals(pixels, pixels_compressed, lambda x, y: x, lambda x, y: len(y), iterator,
-                           not args.row_only, not args.col_only)
+            if args.mode == 0 or args.mode == 3:
+                print("sorting on black")
+                sort_intervals(pixels, pixels_compressed, get_black_index, get_non_black_index, iterator,
+                               not args.row_only, not args.col_only)
+            if args.mode == 2 or args.mode == 3:
+                print("sorting on white")
+                sort_intervals(pixels, pixels_compressed, get_white_index, get_non_white_index, iterator,
+                               not args.row_only, not args.col_only)
+            if args.mode == 1:
+                # start_fn: returns 0 on entering loop
+                # end_fn: returns the length - sorts the entire list
+                # start_fn: x is returned, and x is end.
+                sort_intervals(pixels, pixels_compressed, lambda x, y: x, lambda x, y: len(y), iterator,
+                               not args.row_only, not args.col_only)
 
         im = Image.fromarray(pixels)
         im.save(f"{os.path.splitext(file_name)[0]}_sorted{os.path.splitext(file_name)[-1]}")
