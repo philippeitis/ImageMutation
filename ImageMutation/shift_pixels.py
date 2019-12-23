@@ -1,24 +1,6 @@
 from PIL import Image
 import numpy as np
-
-
-def ranges(size, max_val, start=0):
-    """
-
-    :param size:        Size of each range (or interval)
-    :param start:       The starting interval.
-    :param max_val:     The maximum value the intervals will go to.
-    :return:            Each value in the covered intervals.
-    """
-
-    not_done = True
-    while not_done:
-        upper_index = min(max_val, start + size)
-        for i in range(start, upper_index):
-            yield i
-        start += 2 * size
-        if start >= max_val:
-            not_done = False
+from image_utilities import ranges
 
 
 def parse_args():

@@ -8,7 +8,6 @@ def brightness(pixels):
     :return:        A row x col x 1 matrix where each entry is the maximum of the three values for the corresponding
                     pixel.
     """
-    """ For each pixel in pixels, returns the brightness (or maximum of its three colors). """
     big_pixels = pixels.astype(int)
     return np.maximum(np.maximum(big_pixels[:, :, 0], big_pixels[:, :, 1]), big_pixels[:, :, 2])
 
@@ -20,3 +19,22 @@ def select_random_rows(rows):
     while start != rows:
         start = random.randint(start, rows - 1) + 1
         yield start - 1
+
+
+def ranges(size, max_val, start=0):
+    """ Produces a series of intervals of length size, skipping size elements, which end at max_val.
+
+    :param size:        Size of each range (or interval)
+    :param start:       The starting interval.
+    :param max_val:     The maximum value the intervals will go to.
+    :return:            Each value in the covered intervals.
+    """
+
+    not_done = True
+    while not_done:
+        upper_index = min(max_val, start + size)
+        for i in range(start, upper_index):
+            yield i
+        start += 2 * size
+        if start >= max_val:
+            not_done = False
