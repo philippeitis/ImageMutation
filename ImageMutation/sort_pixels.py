@@ -47,7 +47,7 @@ def parse_args():
                 if light_level < 0 or light_level > 255:
                     raise argparse.ArgumentParser("argument custom_interval requires numbers to be between 0 and 255.")
 
-    return parser.parse_args()
+    return args
 
 
 def get_non_black_index(x_start, row: np.ndarray):
