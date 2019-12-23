@@ -1,19 +1,14 @@
 from PIL import Image
 import numpy as np
 
-"""
-Note that rows in the context of this code will refer to either a row or column if it is in the function name:
- eg. select_random_rows will randomly select a row or column depending on whether you provide it rows or columns.
- If it is not inside the function name, and is not specified in the arguments, rows refers to the rows in the image.
-"""
-
 
 def ranges(size, max_val, start=0):
     """
 
     :param size:        Size of each range (or interval)
-    :param max:         Maximum value.
-    :return:            A generator.
+    :param start:       The starting interval.
+    :param max_val:     The maximum value the intervals will go to.
+    :return:            Each value in the covered intervals.
     """
 
     not_done = True
@@ -38,9 +33,15 @@ def parse_args():
     return parser.parse_args()
 
 
-def shift_row_wrapped(row: np.ndarray, shift_by):
+def shift_row_wrapped(row: np.ndarray, shift_by: int):
     """ Shift pixels in row to the right. Pixels shifted off the end of the row become the first elements of the row.
-     In place. """
+     In place.
+
+    :param row:             The list to modify - pixels will be circularly shifted in place.
+    :param shift_by:        The amount to shift the elements by to the right (-ve if to the left).
+    :return:                Nothing: operations are done in place.
+    """
+
     row_len = row.shape[0]
     shift_by %= row_len
     shift_by = row_len - shift_by
@@ -57,17 +58,14 @@ def shift_row_wrapped(row: np.ndarray, shift_by):
 
 
 def shift_rows_and_cols(image, rows_to_shift, cols_to_shift, shift_rows_by, shift_columns_by):
-    """ Sorts the row on each interval starting with start_point_fn's output, and ending on end_point_fn's output.
-    Expects end_point_fn to produce values that occur after start_point_fn. If sort_cols or sort_rows specified, will
-    sort the columns and rows in the image. Compressed image should be a row x col array, where each element contains a
-    given pixels weight, to be used for sorting.
+    """ Shifts all specified rows and columns (in rows_to_shift and cols_to_shift) by the specified amount. This wraps.
 
     SIDE EFFECTS: Will modify the input image - provide a copy to sort on if this is unwanted.
 
-    :param shift_columns_by:
-    :param shift_rows_by:
-    :param cols_to_shift:
-    :param rows_to_shift:
+    :param shift_columns_by:    How many pixels to shift the specified columns by.
+    :param shift_rows_by:       How many pixels to shift the specified rows by.
+    :param cols_to_shift:       The specific columns in the image which should be shifted.
+    :param rows_to_shift:       The specific rows in the image which should be shifted.
     :param image:               The image to modify.
     :return:                    Nothing. Image is modified in place - user is expected to provide a copy.
     """
@@ -89,11 +87,12 @@ def main():
         img = Image.open(file_name)
         pixels = np.copy(np.asarray(img))
         rows, cols, _ = pixels.shape
-        args.crop_to_fit = True
+
         if args.crop_to_fit:
             rows -= rows % args.checkerboard
             cols -= cols % args.checkerboard
             pixels = pixels[0:rows, 0:cols]
+
         shift_rows_and_cols(pixels, ranges(args.checkerboard, rows), ranges(args.checkerboard, cols),
                             2*args.checkerboard, args.checkerboard)
 
