@@ -8,8 +8,7 @@ def brightness(pixels):
     :return:        A row x col x 1 matrix where each entry is the maximum of the three values for the corresponding
                     pixel.
     """
-    big_pixels = pixels.astype(int)
-    return np.maximum(np.maximum(big_pixels[:, :, 0], big_pixels[:, :, 1]), big_pixels[:, :, 2])
+    return np.maximum(np.maximum(pixels[:, :, 0], pixels[:, :, 1]), pixels[:, :, 2])
 
 
 def select_random_rows(rows):
